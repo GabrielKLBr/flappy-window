@@ -1,0 +1,10 @@
+Restart the game to apply the settings.
+Don't remove any line or add spaces.
+
+PIPE_INTERVAL=300
+BIRD_SIZE=20
+PIPE_WIDTH=80
+PIPE_GAP=125
+PIPE_SPEED=4
+FLAP_STRENTH=-9.5f
+USE_DARK_MODE=1

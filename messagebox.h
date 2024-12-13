@@ -2,6 +2,7 @@
 #include <windows.h>
 
 void ResetGame(HINSTANCE hInstance);
+void DarkMode(HWND hWnd);
 
 LRESULT CALLBACK MessageBoxWndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
@@ -73,6 +74,7 @@ void MessageBoxCustom()
         NULL, NULL, wc.hInstance, NULL
     );
 
+    DarkMode(hwnd);
     MessageBeep(MB_ICONERROR);
 
     // Carregar o ícone de informação
@@ -153,6 +155,7 @@ void MessageBoxCheatCustom()
         NULL, NULL, wc.hInstance, NULL
     );
 
+    DarkMode(hwnd);
     MessageBeep(MB_ICONERROR);
 
     // Carregar o ícone de informação

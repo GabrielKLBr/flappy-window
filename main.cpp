@@ -1,6 +1,11 @@
+#pragma comment(lib, "dwmapi")
 #include "messagebox.h"
 #include "resource.h"
 #include <windows.h>
+#include <dwmapi.h>
+#include <iostream>
+#include <fstream>
+#include <sstream>
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -9,10 +14,13 @@
 // Constantes globais
 const int MONITOR_WIDTH = GetSystemMetrics(SM_CXSCREEN);
 const int MONITOR_HEIGHT = GetSystemMetrics(SM_CYSCREEN);
-const int BIRD_SIZE = 20;
-const int PIPE_WIDTH = 80;
-const int PIPE_GAP = 125;
-const int PIPE_SPEED = 4;
+int PIPE_INTERVAL;
+int BIRD_SIZE;
+int PIPE_WIDTH;
+int PIPE_GAP;
+int PIPE_SPEED;
+int FLAP_STRENTH;
+int USE_DARKMODE;
 
 struct PipePair
 {
@@ -28,7 +36,69 @@ int birdSpeed = 0;
 int gravity = 1;
 int score = 0;
 bool isDead = false;
-//WS_EX_LAYERED | WS_VISIBLE
+
+void ReadSettingsFile(std::string filename)
+{
+    std::ifstream file(filename);
+
+    if(!file.is_open()){
+        std::cerr << "Failed to open the file " << filename << std::endl;
+        char buffer[100];
+        sprintf_s(buffer, "Failed to open the file %s. Using default settings", filename.c_str());
+        int errBox = MessageBoxA(NULL, buffer, "Error", MB_ICONERROR);
+        if (errBox == IDOK) {
+            PIPE_INTERVAL = 300;
+            BIRD_SIZE = 20;
+            PIPE_WIDTH = 80;
+            PIPE_GAP = 125;
+            PIPE_SPEED = 4;
+            USE_DARKMODE = 1;
+        }
+    }
+
+    std::string line;
+    while(std::getline(file, line))
+    {
+        if(line.empty()) continue;
+
+        std::istringstream lineStream(line);
+        std::string name;
+        int value;
+
+        if(std::getline(lineStream, name, '=') && (lineStream >> value))
+        {
+            if (name == "PIPE_INTERVAL") {
+                PIPE_INTERVAL = value;
+            } else if (name == "BIRD_SIZE") {
+                BIRD_SIZE = value;
+            } else if (name == "PIPE_WIDTH") {
+                PIPE_WIDTH = value;
+            } else if (name == "PIPE_GAP") {
+                PIPE_GAP = value;
+            } else if (name == "PIPE_SPEED") {
+                PIPE_SPEED = value;
+            } else if (name == "USE_DARK_MODE") {
+                USE_DARKMODE = value;
+            } else if (name == "FLAP_STRENTH") {
+                FLAP_STRENTH = value;
+            } else {
+                std::cerr << "Unknown variable: " << name << std::endl;
+            }
+        }
+    }
+
+    file.close();
+}
+
+void DarkMode(HWND hWnd)
+{
+    if(USE_DARKMODE == 1)
+    {
+        BOOL darkMode = true;
+        BOOL setDarkMode = SUCCEEDED(DwmSetWindowAttribute(hWnd, DWMWINDOWATTRIBUTE::DWMWA_USE_IMMERSIVE_DARK_MODE, &darkMode, sizeof(darkMode)));
+    }
+}
+
 // Função para criar uma janela básica
 HWND CreateGameWindow(HINSTANCE hInstance, LPCSTR className, int x, int y, int width, int height, DWORD style, LPCSTR title) {
     HWND hwnd = CreateWindowEx(
@@ -48,7 +118,7 @@ void HandleFlap(UINT msg, WPARAM wparam)
     {
         if (wparam == VK_SPACE || !isDead)
         {
-            birdSpeed = -9.5f;
+            birdSpeed = FLAP_STRENTH;
         }
     }
 }
@@ -78,6 +148,17 @@ void ResetGame(HINSTANCE hInstance) {
     HWND topPipe = CreateGameWindow(hInstance, "PipeWindow", MONITOR_WIDTH, 0, PIPE_WIDTH, gapStart, WS_EX_LAYERED | WS_VISIBLE, "Top Pipe");
     HWND bottomPipe = CreateGameWindow(hInstance, "PipeWindow", MONITOR_WIDTH, gapStart + PIPE_GAP, PIPE_WIDTH, MONITOR_HEIGHT - gapStart - PIPE_GAP, WS_EX_LAYERED | WS_VISIBLE, "Bottom Pipe");
     pipePairs.push_back({topPipe, bottomPipe, false});
+
+    DarkMode(hwndBird);
+    DarkMode(hwndScore);
+    DarkMode(topPipe);
+    DarkMode(bottomPipe);
+
+    //Updates the window state
+    ShowWindow(topPipe, SW_HIDE);
+    ShowWindow(topPipe, SW_SHOW);
+    ShowWindow(bottomPipe, SW_HIDE);
+    ShowWindow(bottomPipe, SW_SHOW);
 }
 
 // Função auxiliar para verificar se um novo par de canos é necessário
@@ -86,7 +167,7 @@ bool IsNewPipeNeeded() {
 
     RECT lastPipeRect;
     GetWindowRect(pipePairs.back().topPipe, &lastPipeRect);
-    return (lastPipeRect.right < MONITOR_WIDTH - 300);
+    return (lastPipeRect.right < MONITOR_WIDTH - PIPE_INTERVAL);
 }
 
 bool CheckCollision() {
@@ -154,6 +235,13 @@ void UpdateGame(HINSTANCE hInstance) {
         HWND topPipe = CreateGameWindow(hInstance, "PipeWindow", MONITOR_WIDTH, 0, PIPE_WIDTH, gapStart, WS_EX_LAYERED | WS_VISIBLE, "Top Pipe");
         HWND bottomPipe = CreateGameWindow(hInstance, "PipeWindow", MONITOR_WIDTH, gapStart + PIPE_GAP, PIPE_WIDTH, MONITOR_HEIGHT - gapStart - PIPE_GAP, WS_EX_LAYERED | WS_VISIBLE, "Bottom Pipe");
         pipePairs.push_back({ topPipe, bottomPipe, false });
+
+        DarkMode(topPipe);
+        DarkMode(bottomPipe);
+        ShowWindow(topPipe, SW_HIDE);
+        ShowWindow(topPipe, SW_SHOW);
+        ShowWindow(bottomPipe, SW_HIDE);
+        ShowWindow(bottomPipe, SW_SHOW);
     }
 
     // Verificar colisões e atualizar pontuação
@@ -246,6 +334,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     RegisterClass(&wcPipe);
     RegisterClass(&wcScore);
 
+    ReadSettingsFile("settings.txt");
     ResetGame(hInstance);
 
     MSG msg = {};
