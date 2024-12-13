@@ -1,5 +1,10 @@
 **I'm new to this dev world, but here a a few things.**
 
+# 1.5 Features
+
+• Settings file
+• Dark window support
+
 # Compiling
 
 ```
