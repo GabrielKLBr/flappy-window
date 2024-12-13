@@ -3,6 +3,7 @@
 # 1.5 Features
 
 • Settings file
+
 • Dark window support
 
 # Compiling
